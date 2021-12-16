@@ -22,36 +22,14 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
+	"github.com/hashicorp/vault/api"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	types "github.com/tucows/hcelper/types"
 )
-
-type VaultLDAPResponse struct {
-	RequestID     string `json:"request_id"`
-	LeaseID       string `json:"lease_id"`
-	Renewable     bool   `json:"renewable"`
-	LeaseDuration int    `json:"lease_duration"`
-	Data          struct {
-	} `json:"data"`
-	WrapInfo interface{} `json:"wrap_info"`
-	Warnings interface{} `json:"warnings"`
-	Auth     struct {
-		ClientToken   string   `json:"client_token"`
-		Accessor      string   `json:"accessor"`
-		Policies      []string `json:"policies"`
-		TokenPolicies []string `json:"token_policies"`
-		Metadata      struct {
-			Username string `json:"username"`
-		} `json:"metadata"`
-		LeaseDuration int    `json:"lease_duration"`
-		Renewable     bool   `json:"renewable"`
-		EntityID      string `json:"entity_id"`
-		TokenType     string `json:"token_type"`
-		Orphan        bool   `json:"orphan"`
-	} `json:"auth"`
-}
 
 // loginCmd represents the login command
 var loginCmd = &cobra.Command{
@@ -127,8 +105,6 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 
-		fmt.Printf("%s/v1/auth/ldap/login/%s", envUrl, username)
-
 		// Login to vault
 		if method != "" {
 			switch method {
@@ -148,7 +124,7 @@ to quickly create a Cobra application.`,
 				}
 				defer resp.Body.Close()
 
-				ldapResp := VaultLDAPResponse{}
+				ldapResp := types.VaultLDAPResponse{}
 				//var ldapResp map[string]interface{}
 				err = json.NewDecoder(resp.Body).Decode(&ldapResp)
 
@@ -159,6 +135,26 @@ to quickly create a Cobra application.`,
 				fmt.Printf("export VAULT_TOKEN=%s\n", ldapResp.Auth.ClientToken)
 
 			}
+		}
+
+		vc := &types.VaultConfig{}
+		config := api.DefaultConfig()
+		client, err := api.NewClient(config)
+		if err != nil {
+			fmt.Printf("Error constructing Vault client: %v\n", err)
+		} else {
+			vc.Client = client
+		}
+		sList, err := vc.Client.Logical().Read("sys/mounts")
+		if err != nil {
+			fmt.Printf("Error listing approles: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("secrets list: %v\n\n", sList.Data)
+
+		for key, value := range sList.Data {
+			keyname := strings.TrimRight(key, "/")
+			fmt.Printf("%v is: %v\n\n", key, value)
 		}
 
 	},
