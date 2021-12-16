@@ -22,33 +22,14 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"regexp"
+	"strings"
 
+	"github.com/hashicorp/vault/api"
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	types "github.com/tucows/hcelper/types"
 )
-
-type AuthCredentials struct {
-	Username string `example:"jdoe"`
-	Password string `example:"supersecretpassword"`
-	Method   string `example:"ldap"`
-}
-
-type VaultLDAPResponse struct {
-	LeaseID       string      `json:"lease_id"`
-	Renewable     bool        `json:"renewable"`
-	LeaseDuration int         `json:"lease_duration"`
-	Data          interface{} `json:"data"`
-	Auth          struct {
-		ClientToken string   `json:"client_token"`
-		Policies    []string `json:"policies"`
-		Metadata    struct {
-			Username string `json:"username"`
-		} `json:"metadata"`
-		LeaseDuration int  `json:"lease_duration"`
-		Renewable     bool `json:"renewable"`
-	} `json:"auth"`
-}
 
 // loginCmd represents the login command
 var loginCmd = &cobra.Command{
@@ -65,10 +46,12 @@ to quickly create a Cobra application.`,
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 
+		// Grab flag info
 		username := cmd.Flag("username").Value.String()
 		method := cmd.Flag("method").Value.String()
 		env := cmd.Flag("env").Value.String()
 
+		/* previously used for promptui.Prompt's validate
 		envCheck := func(input string) error {
 			_, err := regexp.MatchString(`pre|prod`, input)
 			if err != nil {
@@ -76,15 +59,24 @@ to quickly create a Cobra application.`,
 			}
 			return nil
 		}
+		*/
 
+		// Force env selection if not set
 		if env == "" {
-			envPrompt := promptui.Prompt{
-				Label:    "Environment (pre or prod)",
-				Validate: envCheck,
+			envPrompt := promptui.Select{
+				Label: "Select you environment",
+				Items: []string{"pre", "prod"},
 			}
-			env = envPrompt.Run()
+			_, selectEnv, err := envPrompt.Run()
+			if err != nil {
+				fmt.Printf("Env input failed %v\n", err)
+			}
+			env = selectEnv
 		}
-		os.Setenv("VAULT_ADDR", env)
+
+		envUrl := viper.GetViper().GetString(env)
+
+		os.Setenv("VAULT_ADDR", envUrl)
 
 		// create the password prompt
 		validate := func(input string) error {
@@ -100,33 +92,30 @@ to quickly create a Cobra application.`,
 			Mask:     '*',
 		}
 
-		result, err := passPrompt.Run()
+		password, err := passPrompt.Run()
 
 		if err != nil {
 			fmt.Printf("Password input failed %v\n", err)
 			os.Exit(1)
 		}
+		submitPass := []byte(`{"password" : "` + password + `"}`)
 
-		// prepare auth request to gateway
-		authCreds := AuthCredentials{
-			Username: username,
-			Password: result,
-			Method:   method,
-		}
-
-		body, err := json.Marshal(authCreds.Password)
 		if err != nil {
 			fmt.Printf("Error in parsing auth request parameters: %v\n", err)
 			os.Exit(1)
 		}
-		if authCreds.Method != "" {
-			switch authCreds.Method {
+
+		// Login to vault
+		if method != "" {
+			switch method {
 			case "ldap":
-				req, err := http.NewRequest("POST", fmt.Sprintf("%s/auth/ldap/login/%s", env, authCreds.Username), bytes.NewBuffer(body))
+				req, err := http.NewRequest("POST", fmt.Sprintf("%s/v1/auth/ldap/login/%s", envUrl, username), bytes.NewBuffer(submitPass))
+
 				if err != nil {
 					fmt.Printf("Error constructing LDAP login request: %v\n", err)
 					os.Exit(1)
 				}
+				req.Header.Set("Content-Type", "application/json")
 				client := &http.Client{}
 				resp, err := client.Do(req)
 				if err != nil {
@@ -135,12 +124,37 @@ to quickly create a Cobra application.`,
 				}
 				defer resp.Body.Close()
 
-				ldapResp := VaultLDAPResponse{}
+				ldapResp := types.VaultLDAPResponse{}
+				//var ldapResp map[string]interface{}
 				err = json.NewDecoder(resp.Body).Decode(&ldapResp)
 
+				os.Setenv("VAULT_ADDR", envUrl)
 				os.Setenv("VAULT_TOKEN", ldapResp.Auth.ClientToken)
 
+				fmt.Printf("export VAULT_ADDR=%s\n", envUrl)
+				fmt.Printf("export VAULT_TOKEN=%s\n", ldapResp.Auth.ClientToken)
+
 			}
+		}
+
+		vc := &types.VaultConfig{}
+		config := api.DefaultConfig()
+		client, err := api.NewClient(config)
+		if err != nil {
+			fmt.Printf("Error constructing Vault client: %v\n", err)
+		} else {
+			vc.Client = client
+		}
+		sList, err := vc.Client.Logical().Read("sys/mounts")
+		if err != nil {
+			fmt.Printf("Error listing approles: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("secrets list: %v\n\n", sList.Data)
+
+		for key, value := range sList.Data {
+			keyname := strings.TrimRight(key, "/")
+			fmt.Printf("%v is: %v\n\n", key, value)
 		}
 
 	},
