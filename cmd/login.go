@@ -26,6 +26,7 @@ import (
 
 	"github.com/hashicorp/vault/api"
 	"github.com/manifoldco/promptui"
+	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	types "github.com/tucows/hcelper/types"
@@ -152,10 +153,16 @@ to quickly create a Cobra application.`,
 		}
 		fmt.Printf("secrets list: %v\n\n", sList.Data)
 
+		var backends []string
 		for key, value := range sList.Data {
 			keyname := strings.TrimRight(key, "/")
-			fmt.Printf("%v is: %v\n\n", key, value)
+			var sMount types.Mount
+			mapstructure.Decode(value, &sMount)
+			fmt.Printf("The mount %v is of Type %v\n\n", keyname, sMount.Type)
+			backends = append(backends, keyname)
+			//fmt.Printf("%v is: %v\n\n", key, value)
 		}
+		fmt.Printf("Backends: %v\n\n", backends)
 
 	},
 }
