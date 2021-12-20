@@ -48,3 +48,36 @@ type Mount struct {
 type VaultConfig struct {
 	Client *api.Client
 }
+
+type ValidMount struct {
+	Name string
+	Path string
+	Type string
+}
+
+type MountResponse struct {
+	Mounts []ValidMount
+}
+
+type ExportResponse struct {
+	Exports []CompiledExport
+}
+
+type CompiledExport struct {
+	URL   string
+	Token string
+	Type  string
+}
+
+type MountConfig struct {
+	Address string `json:"address"`
+}
+
+type NomadToken struct {
+	Accessor_ID string `json:"accessor_id"`
+	Secret_ID   string `json:"secret_id"`
+}
+
+type ConsulToken struct {
+	Token string `json:"token"`
+}

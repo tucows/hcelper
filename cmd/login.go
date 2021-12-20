@@ -22,13 +22,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 
 	"github.com/hashicorp/vault/api"
 	"github.com/manifoldco/promptui"
-	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	backends "github.com/tucows/hcelper/backends"
 	types "github.com/tucows/hcelper/types"
 )
 
@@ -138,6 +137,7 @@ to quickly create a Cobra application.`,
 			}
 		}
 
+		// Create client
 		vc := &types.VaultConfig{}
 		config := api.DefaultConfig()
 		client, err := api.NewClient(config)
@@ -146,23 +146,40 @@ to quickly create a Cobra application.`,
 		} else {
 			vc.Client = client
 		}
+
+		// Start grabbing backends
+
 		sList, err := vc.Client.Logical().Read("sys/mounts")
 		if err != nil {
 			fmt.Printf("Error listing approles: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("secrets list: %v\n\n", sList.Data)
+		// Iterate on the backends
 
-		var backends []string
-		for key, value := range sList.Data {
-			keyname := strings.TrimRight(key, "/")
-			var sMount types.Mount
-			mapstructure.Decode(value, &sMount)
-			fmt.Printf("The mount %v is of Type %v\n\n", keyname, sMount.Type)
-			backends = append(backends, keyname)
-			//fmt.Printf("%v is: %v\n\n", key, value)
+		vMounts, err := backends.GetValidMounts(sList.Data)
+		if err != nil {
+			fmt.Printf("Error getting mounts: %v\n", err)
+			os.Exit(1)
 		}
-		fmt.Printf("Backends: %v\n\n", backends)
+
+		exportResponses, err := backends.GetExportValues(vc.Client, vMounts.Mounts)
+		if err != nil {
+			fmt.Printf("Error getting exports: %v\n", err)
+			os.Exit(1)
+		}
+
+		for _, value := range exportResponses.Exports {
+			//fmt.Printf("Key is:%v, Value is %v\n\n", key, value)
+			switch value.Type {
+			case "nomad":
+				fmt.Printf("export NOMAD_ADDR=%v\n", value.URL)
+				fmt.Printf("export NOMAD_TOKEN=%v\n", value.Token)
+
+			case "consul":
+				fmt.Printf("export CONSUL_HTTP_ADDR=%v\n", value.URL)
+				fmt.Printf("export CONSUL_HTTP_TOKEN=%v\n", value.Token)
+			}
+		}
 
 	},
 }
