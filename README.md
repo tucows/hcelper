@@ -1,7 +1,4 @@
 # hcelper
-
-`hcelper` is designed to be used to aid with navigating the Hashicorp enterprise stack. The idea is to use a Vault-first approach that logs you into vault and then sets uses secrets engines and configured roles to export the environmental variables required to access the rest of your stack.
-
 ```
 edmund@oncall:~/git/hcelper> ./hcelper login --help
 Error: required flag(s) "username" not set
@@ -19,6 +16,14 @@ Global Flags:
 
 required flag(s) "username" not set
 ```
+
+`hcelper` is designed to be used to aid with navigating the Hashicorp enterprise stack. The idea is to use a Vault-first approach that logs you into vault and then uses secrets engines and configured roles to export the environmental variables required to access the rest of your stack.
+
+For people working with multiple tenant spaces, this helper program provides a simple method to log in to ALL tenant-related namespaces by logging into just vault. This is accomplished by the fact that access to hashicorp endpoints is generally accomplished by an `ADDR` field and a `TOKEN` field. This includes vault, though its default behaviour is to stick the token in a file (ew), which interferes with running multiple shells, as they all source the same file
+
+Early on I realized I'd forgotten basic unix shell philosophy, namely that child shells can't export information to a parent shell, so the initial idea that the helper would export that for you was nix'd. `eval`ing is out too because I need to prompt for authentication and I super do not want to tell people to just store that in a file. 
+
+So for now copy and paste the output!
 
 ## Requirements
 
