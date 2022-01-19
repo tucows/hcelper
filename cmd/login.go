@@ -50,6 +50,7 @@ to quickly create a Cobra application.`,
 		username := cmd.Flag("username").Value.String()
 		method := cmd.Flag("method").Value.String()
 		env := cmd.Flag("env").Value.String()
+		namespace := cmd.Flag("namespace").Value.String()
 
 		/* previously used for promptui.Prompt's validate
 		envCheck := func(input string) error {
@@ -115,6 +116,11 @@ to quickly create a Cobra application.`,
 					fmt.Printf("Error constructing LDAP login request: %v\n", err)
 					os.Exit(1)
 				}
+
+				if namespace != "" {
+					req.Header.Set("X-Vault-Namespace", namespace)
+				}
+
 				req.Header.Set("Content-Type", "application/json")
 				client := &http.Client{}
 				resp, err := client.Do(req)
@@ -141,6 +147,10 @@ to quickly create a Cobra application.`,
 		vc := &types.VaultConfig{}
 		config := api.DefaultConfig()
 		client, err := api.NewClient(config)
+		if namespace != "" {
+			client.SetNamespace(namespace)
+		}
+
 		if err != nil {
 			fmt.Printf("Error constructing Vault client: %v\n", err)
 		} else {
@@ -199,5 +209,6 @@ func init() {
 	loginCmd.Flags().StringP("username", "u", "", "The username for user login credentials")
 	loginCmd.Flags().StringP("env", "e", "", "The environment you're logging into (pre or prod)")
 	loginCmd.Flags().StringP("method", "m", "ldap", "The login method")
+	loginCmd.Flags().StringP("namespace", "n", "", "The target namespace")
 	loginCmd.MarkFlagRequired("username")
 }
