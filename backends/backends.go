@@ -102,15 +102,11 @@ func GetEngineRoles(vc *api.Client, mount types.ValidMount) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	var roles string
-	sliced := sliceToString(rolecall.Data["keys"].([]interface{}))
-	fmt.Println(sliced)
-	roles = fmt.Sprintf("%v", rolecall.Data["keys"])
-	roles = strings.TrimLeft(roles, "[")
-	roles = strings.TrimRight(roles, "]")
-	roleSlice := strings.Split(roles, " ")
 
-	return roleSlice, nil
+	sliced := sliceToString(rolecall.Data["keys"].([]interface{}))
+	fmt.Printf("sliced: %v", sliced)
+
+	return sliced, nil
 }
 
 func RoleMenu(vc *api.Client, backend types.ValidMount) (string, error) {
