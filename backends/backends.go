@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	api "github.com/hashicorp/vault/api"
+	"github.com/manifoldco/promptui"
 	"github.com/mitchellh/mapstructure"
 	types "github.com/tucows/hcelper/types"
 )
@@ -47,19 +48,24 @@ func GetExportValues(vc *api.Client, mounts []types.ValidMount) (types.ExportRes
 		// Get the appropriate backend path
 		switch backendpath.Type {
 		case "nomad":
-			// NO. BAD. LIST CREDS AND PROMPT ON NEXT REVISION
-			backendToken, err := vc.Logical().Read(fmt.Sprintf("%v/creds/operators", backendpath.Path))
+			selectRole, err := RoleMenu(vc, backendpath)
+			if err != nil {
+				fmt.Printf("Error in Nomad role selection %v\n", err)
+			}
+			backendToken, err := vc.Logical().Read(fmt.Sprintf("%v/creds/%v", backendpath.Path, selectRole))
 			if err != nil {
 				return types.ExportResponse{}, err
 			}
-
 			var nomadToken types.NomadToken
 			mapstructure.Decode(backendToken.Data, &nomadToken)
 			tokenValue = nomadToken.Secret_ID
 
 		case "consul":
-			// NO. BAD. LIST CREDS AND PROMPT ON NEXT REVISION
-			backendToken, err := vc.Logical().Read(fmt.Sprintf("%v/creds/operators", backendpath.Path))
+			selectRole, err := RoleMenu(vc, backendpath)
+			if err != nil {
+				fmt.Printf("Error in Consul role selection %v\n", err)
+			}
+			backendToken, err := vc.Logical().Read(fmt.Sprintf("%v/creds/%v", backendpath.Path, selectRole))
 			if err != nil {
 				return types.ExportResponse{}, err
 			}
@@ -73,4 +79,41 @@ func GetExportValues(vc *api.Client, mounts []types.ValidMount) (types.ExportRes
 	}
 
 	return compiledResponse, nil
+}
+
+func GetEngineRoles(vc *api.Client, mount types.ValidMount) ([]string, error) {
+	var rolecall *api.Secret
+	var err error
+	switch mount.Type {
+	case "nomad":
+		rolecall, err = vc.Logical().List(fmt.Sprintf("%v/role", mount.Path))
+	case "consul":
+		rolecall, err = vc.Logical().List(fmt.Sprintf("%v/roles", mount.Path))
+	}
+
+	if err != nil {
+		return nil, err
+	}
+	var roles string
+	roles = fmt.Sprintf("%v", rolecall.Data["keys"])
+	roles = strings.TrimLeft(roles, "[")
+	roles = strings.TrimRight(roles, "]")
+	roleSlice := strings.Split(roles, " ")
+
+	return roleSlice, nil
+}
+
+func RoleMenu(vc *api.Client, backend types.ValidMount) (string, error) {
+	roles, _ := GetEngineRoles(vc, backend)
+	label := fmt.Sprintf("Select your %v role:", backend.Type)
+	nomadRolePrompt := promptui.Select{
+		Label: label,
+		Items: roles,
+	}
+	_, selectRole, err := nomadRolePrompt.Run()
+	if err != nil {
+		fmt.Printf("Env input failed %v\n", err)
+	}
+
+	return selectRole, err
 }

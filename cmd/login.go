@@ -124,8 +124,14 @@ to quickly create a Cobra application.`,
 				req.Header.Set("Content-Type", "application/json")
 				client := &http.Client{}
 				resp, err := client.Do(req)
+				fmt.Print(resp.StatusCode)
+				fmt.Print(err)
 				if err != nil {
 					fmt.Printf("Error logging into Vault via LDAP: %v\n", err)
+					os.Exit(1)
+				}
+				if resp.StatusCode != 200 {
+					fmt.Printf("Error logging into Vault via LDAP: %v, %v\n", resp.StatusCode, resp.Body)
 					os.Exit(1)
 				}
 				defer resp.Body.Close()
