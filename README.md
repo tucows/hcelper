@@ -38,7 +38,20 @@ So for now copy and paste the output!
 ## Basic
 `hcelper login --username eadderley`
 
-Currently this logs you into the root namespace and dumps `export` values of all your secret backends, like so:
+Currently this logs you into the your namespace and dumps `export` and prompts you for any roles in any secrets engines you have, like so:
+
+```
+eadderley@oncall:~/> ./hcelper login -u eadderley -e pre -n lab-ce-shared
+Password: *****************
+[node-write read-only read-write]
+Use the arrow keys to navigate: ↓ ↑ → ← 
+? Select your nomad role:: 
+  ▸ node-write
+    read-only
+    read-write
+```
+
+After which it dumps values of all your secret backends, like so:
 
 ```
 export VAULT_ADDR=https://vault.url.systems:8200
@@ -48,6 +61,7 @@ export CONSUL_HTTP_TOKEN=REDACTED
 export NOMAD_ADDR=https://nomad.something.systems:4646
 export NOMAD_TOKEN=NUFFIN
 ```
+Which you can then copy and paste to use with your binaries.
 
 ## Advanced 
 

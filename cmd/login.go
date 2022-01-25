@@ -76,6 +76,7 @@ to quickly create a Cobra application.`,
 		}
 
 		envUrl := viper.GetViper().GetString(env)
+		var envToken string
 
 		os.Setenv("VAULT_ADDR", envUrl)
 
@@ -124,8 +125,7 @@ to quickly create a Cobra application.`,
 				req.Header.Set("Content-Type", "application/json")
 				client := &http.Client{}
 				resp, err := client.Do(req)
-				fmt.Print(resp.StatusCode)
-				fmt.Print(err)
+
 				if err != nil {
 					fmt.Printf("Error logging into Vault via LDAP: %v\n", err)
 					os.Exit(1)
@@ -139,9 +139,10 @@ to quickly create a Cobra application.`,
 				ldapResp := types.VaultLDAPResponse{}
 				//var ldapResp map[string]interface{}
 				err = json.NewDecoder(resp.Body).Decode(&ldapResp)
+				envToken = ldapResp.Auth.ClientToken
 
 				os.Setenv("VAULT_ADDR", envUrl)
-				os.Setenv("VAULT_TOKEN", ldapResp.Auth.ClientToken)
+				os.Setenv("VAULT_TOKEN", envToken)
 
 			}
 		}
@@ -195,7 +196,7 @@ to quickly create a Cobra application.`,
 		}
 		//Print the Vault info from above
 		fmt.Printf("export VAULT_ADDR=%s\n", envUrl)
-		fmt.Printf("export VAULT_TOKEN=%s\n", ldapResp.Auth.ClientToken)
+		fmt.Printf("export VAULT_TOKEN=%s\n", envToken)
 	},
 }
 
