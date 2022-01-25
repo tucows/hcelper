@@ -104,7 +104,6 @@ func GetEngineRoles(vc *api.Client, mount types.ValidMount) ([]string, error) {
 	}
 
 	sliced := sliceToString(rolecall.Data["keys"].([]interface{}))
-	fmt.Printf("sliced: %v", sliced)
 
 	return sliced, nil
 }
