@@ -143,9 +143,6 @@ to quickly create a Cobra application.`,
 				os.Setenv("VAULT_ADDR", envUrl)
 				os.Setenv("VAULT_TOKEN", ldapResp.Auth.ClientToken)
 
-				fmt.Printf("export VAULT_ADDR=%s\n", envUrl)
-				fmt.Printf("export VAULT_TOKEN=%s\n", ldapResp.Auth.ClientToken)
-
 			}
 		}
 
@@ -196,7 +193,9 @@ to quickly create a Cobra application.`,
 				fmt.Printf("export CONSUL_HTTP_TOKEN=%v\n", value.Token)
 			}
 		}
-
+		//Print the Vault info from above
+		fmt.Printf("export VAULT_ADDR=%s\n", envUrl)
+		fmt.Printf("export VAULT_TOKEN=%s\n", ldapResp.Auth.ClientToken)
 	},
 }
 
