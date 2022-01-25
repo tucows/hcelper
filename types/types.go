@@ -81,3 +81,9 @@ type NomadToken struct {
 type ConsulToken struct {
 	Token string `json:"token"`
 }
+
+type EngineRoles struct {
+	Data struct {
+		Keys []string `json:"keys"`
+	} `json:"data"`
+}

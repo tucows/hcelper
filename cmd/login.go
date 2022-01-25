@@ -50,6 +50,7 @@ to quickly create a Cobra application.`,
 		username := cmd.Flag("username").Value.String()
 		method := cmd.Flag("method").Value.String()
 		env := cmd.Flag("env").Value.String()
+		namespace := cmd.Flag("namespace").Value.String()
 
 		/* previously used for promptui.Prompt's validate
 		envCheck := func(input string) error {
@@ -75,6 +76,7 @@ to quickly create a Cobra application.`,
 		}
 
 		envUrl := viper.GetViper().GetString(env)
+		var envToken string
 
 		os.Setenv("VAULT_ADDR", envUrl)
 
@@ -115,11 +117,21 @@ to quickly create a Cobra application.`,
 					fmt.Printf("Error constructing LDAP login request: %v\n", err)
 					os.Exit(1)
 				}
+
+				if namespace != "" {
+					req.Header.Set("X-Vault-Namespace", namespace)
+				}
+
 				req.Header.Set("Content-Type", "application/json")
 				client := &http.Client{}
 				resp, err := client.Do(req)
+
 				if err != nil {
 					fmt.Printf("Error logging into Vault via LDAP: %v\n", err)
+					os.Exit(1)
+				}
+				if resp.StatusCode != 200 {
+					fmt.Printf("Error logging into Vault via LDAP: %v, %v\n", resp.StatusCode, resp.Body)
 					os.Exit(1)
 				}
 				defer resp.Body.Close()
@@ -127,12 +139,10 @@ to quickly create a Cobra application.`,
 				ldapResp := types.VaultLDAPResponse{}
 				//var ldapResp map[string]interface{}
 				err = json.NewDecoder(resp.Body).Decode(&ldapResp)
+				envToken = ldapResp.Auth.ClientToken
 
 				os.Setenv("VAULT_ADDR", envUrl)
-				os.Setenv("VAULT_TOKEN", ldapResp.Auth.ClientToken)
-
-				fmt.Printf("export VAULT_ADDR=%s\n", envUrl)
-				fmt.Printf("export VAULT_TOKEN=%s\n", ldapResp.Auth.ClientToken)
+				os.Setenv("VAULT_TOKEN", envToken)
 
 			}
 		}
@@ -141,6 +151,10 @@ to quickly create a Cobra application.`,
 		vc := &types.VaultConfig{}
 		config := api.DefaultConfig()
 		client, err := api.NewClient(config)
+		if namespace != "" {
+			client.SetNamespace(namespace)
+		}
+
 		if err != nil {
 			fmt.Printf("Error constructing Vault client: %v\n", err)
 		} else {
@@ -180,7 +194,9 @@ to quickly create a Cobra application.`,
 				fmt.Printf("export CONSUL_HTTP_TOKEN=%v\n", value.Token)
 			}
 		}
-
+		//Print the Vault info from above
+		fmt.Printf("export VAULT_ADDR=%s\n", envUrl)
+		fmt.Printf("export VAULT_TOKEN=%s\n", envToken)
 	},
 }
 
@@ -199,5 +215,6 @@ func init() {
 	loginCmd.Flags().StringP("username", "u", "", "The username for user login credentials")
 	loginCmd.Flags().StringP("env", "e", "", "The environment you're logging into (pre or prod)")
 	loginCmd.Flags().StringP("method", "m", "ldap", "The login method")
+	loginCmd.Flags().StringP("namespace", "n", "", "The target namespace")
 	loginCmd.MarkFlagRequired("username")
 }
