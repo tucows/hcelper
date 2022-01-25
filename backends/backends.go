@@ -81,6 +81,14 @@ func GetExportValues(vc *api.Client, mounts []types.ValidMount) (types.ExportRes
 	return compiledResponse, nil
 }
 
+func sliceToString(values []interface{}) []string {
+	stringArr := []string{}
+	for index := range values {
+		stringArr = append(stringArr, fmt.Sprintf("%v", values[index]))
+	}
+	return stringArr
+}
+
 func GetEngineRoles(vc *api.Client, mount types.ValidMount) ([]string, error) {
 	var rolecall *api.Secret
 	var err error
@@ -95,6 +103,8 @@ func GetEngineRoles(vc *api.Client, mount types.ValidMount) ([]string, error) {
 		return nil, err
 	}
 	var roles string
+	sliced := sliceToString(rolecall.Data["keys"].([]interface{}))
+	fmt.Println(sliced)
 	roles = fmt.Sprintf("%v", rolecall.Data["keys"])
 	roles = strings.TrimLeft(roles, "[")
 	roles = strings.TrimRight(roles, "]")
