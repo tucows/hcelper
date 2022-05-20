@@ -49,7 +49,6 @@ to quickly create a Cobra application.`,
 		// Grab flag info
 		username := cmd.Flag("username").Value.String()
 		method := cmd.Flag("method").Value.String()
-		env := cmd.Flag("env").Value.String()
 		namespace := cmd.Flag("namespace").Value.String()
 
 		/* previously used for promptui.Prompt's validate
@@ -63,19 +62,8 @@ to quickly create a Cobra application.`,
 		*/
 
 		// Force env selection if not set
-		if env == "" {
-			envPrompt := promptui.Select{
-				Label: "Select you environment",
-				Items: []string{"pre", "prod"},
-			}
-			_, selectEnv, err := envPrompt.Run()
-			if err != nil {
-				fmt.Printf("Env input failed %v\n", err)
-			}
-			env = selectEnv
-		}
 
-		envUrl := viper.GetViper().GetString(env)
+		envUrl := viper.GetViper().GetString("gateway")
 		var envToken string
 
 		os.Setenv("VAULT_ADDR", envUrl)
@@ -213,7 +201,6 @@ func init() {
 	// is called directly, e.g.:
 	// loginCmd.Flags().StringP("gateway", "g", "", "The Mortar API gateway URL")
 	loginCmd.Flags().StringP("username", "u", "", "The username for user login credentials")
-	loginCmd.Flags().StringP("env", "e", "", "The environment you're logging into (pre or prod)")
 	loginCmd.Flags().StringP("method", "m", "ldap", "The login method")
 	loginCmd.Flags().StringP("namespace", "n", "", "The target namespace")
 	loginCmd.MarkFlagRequired("username")

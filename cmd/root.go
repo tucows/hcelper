@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -69,9 +70,6 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	} else {
 
-		// global disable TLS verify using gateway_tls_skip_verify optional setting
-		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: viper.GetBool("gateway_tls_skip_verify")}
-
 		dirname, err := os.UserHomeDir()
 		if err != nil {
 			fmt.Println(err)
@@ -82,8 +80,8 @@ func initConfig() {
 		viper.SetConfigName(".hce")
 		viper.SetConfigType("hcl")
 
-		viper.SetDefault("pre", "https://vault.pre-hashicorp-ent.cnco.tucows.systems:8200")
-		viper.SetDefault("prod", "https://vault.prod-hashicorp-ent.bra2.tucows.systems:8200")
+		// global disable TLS verify using gateway_tls_skip_verify optional setting
+		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: viper.GetBool("gateway_tls_skip_verify")}
 
 	}
 
@@ -91,10 +89,28 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// Config file not found; ignore error if desired
-			fmt.Println("No .hce.hcl config file found. Creating...")
-			viper.SafeWriteConfig()
+			fmt.Println("No .hce.hcl config file found. Provide a path to one, or ensure it is in your homedir.")
+			fmt.Println("See https://github.com/tucows/hcelper for more information.")
 		} else {
-			// Config file was found but another error was produced
+			fmt.Sprintf("Error: %v", err)
 		}
+		os.Exit(1)
 	}
+
+	gatewayCheck := viper.InConfig("gateway")
+	if !gatewayCheck {
+		fmt.Println("Gateway not found")
+		os.Exit(1)
+	}
+	gateway := viper.GetString("gateway")
+	fqdnCheck, err := regexp.MatchString(`https\:\/\/*`, gateway)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	if !fqdnCheck {
+		fmt.Printf("Not a valid FQDN: %v\n", gateway)
+		os.Exit(1)
+	}
+
 }
